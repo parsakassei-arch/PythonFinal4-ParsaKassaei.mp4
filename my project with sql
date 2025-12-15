@@ -1,0 +1,178 @@
+from sqlite3 import connect
+import mysql.connector
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+
+
+conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="123Parsa123",
+        database="test_db",
+        port=3306
+)
+cursor = conn.cursor()
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fname VARCHAR(50),
+    lname VARCHAR(50),
+    age INT,
+    grade FLOAT
+)
+""")
+conn.commit()
+
+
+cursor.execute("SELECT id, fname, lname, age, grade FROM students")
+students = cursor.fetchall()   
+
+
+
+def add_student():
+    fname = entry_fname.get()
+    lname = entry_lname.get()
+    age = entry_age.get()
+    grade = entry_grade.get()
+
+    if not fname or not lname or not age or not grade:
+        messagebox.showwarning("خطا", "لطفاً همه فیلدها را پر کنید.")
+        return
+
+    
+    cursor.execute(
+        "INSERT INTO students (fname, lname, age, grade) VALUES (%s, %s, %s, %s)",
+        (fname, lname, age, grade)
+    )
+    conn.commit()
+
+    
+    cursor.execute("SELECT id, fname, lname, age, grade FROM students")
+    global students
+    students = cursor.fetchall()
+
+    update_table()
+    clear_entries()
+
+def update_table():
+    for row in tree.get_children():
+        tree.delete(row)
+
+
+def clear_entries():
+    entry_fname.delete(0, tk.END)
+    entry_lname.delete(0, tk.END)
+    entry_age.delete(0, tk.END)
+    entry_grade.delete(0, tk.END)
+
+def edit_student():
+    selected = tree.focus()
+    if not selected:
+        messagebox.showinfo("ویرایش", "لطفاً یک دانش‌آموز را انتخاب کنید.")
+        return
+def delete_student():
+    selected = tree.focus()
+    if not selected:
+        messagebox.showinfo("حذف", "لطفاً یک دانش‌آموز را انتخاب کنید.")
+        return
+
+    students.pop(int(selected))
+    update_table()
+    values = tree.item(selected, "values")
+
+    entry_fname.delete(0, tk.END)
+    entry_fname.insert(0, values[0])
+
+    entry_lname.delete(0, tk.END)
+    entry_lname.insert(0, values[1])
+
+    entry_age.delete(0, tk.END)
+    entry_age.insert(0, values[2])
+
+    entry_grade.delete(0, tk.END)
+    entry_grade.insert(0, values[3])
+
+   
+    cursor.execute("DELETE FROM students WHERE id=%s", (selected,))
+    conn.commit()
+
+   
+    cursor.execute("SELECT id, fname, lname, age, grade FROM students")
+    global students
+    students = cursor.fetchall()
+
+    update_table()
+
+# ------------------ UI ------------------
+
+root = tk.Tk()
+root.title("مدیریت دانش‌آموزان")
+root.geometry("650x450")
+root.configure(bg="#1a1a1a")
+
+style = ttk.Style()
+style.theme_use("clam")
+
+style.configure("Treeview",
+                background="#2b2b2b",
+                foreground="white",
+                rowheight=28,
+                fieldbackground="#2b2b2b",
+                bordercolor="#444",
+                borderwidth=1)
+
+style.configure("Treeview.Heading",
+                background="#111",
+                foreground="white",
+                font=("IRANSans", 11, "bold"))
+
+style.map("Treeview",
+          background=[("selected", "#444")])
+
+tree = ttk.Treeview(root, columns=("نام", "نام خانوادگی", "سن", "نمره"), show="headings")
+tree.heading("نام", text="نام")
+tree.heading("نام خانوادگی", text="نام خانوادگی")
+tree.heading("سن", text="سن")
+tree.heading("نمره", text="نمره")
+tree.pack(expand=True, fill="both", pady=10)
+
+frame = tk.Frame(root, bg="#1a1a1a")
+frame.pack(pady=10)
+
+labels_color = "#e0e0e0"
+
+tk.Label(frame, text="نام", bg="#1a1a1a", fg=labels_color).grid(row=0, column=0, padx=10)
+entry_fname = tk.Entry(frame, bg="#333", fg="white", insertbackground="white")
+entry_fname.grid(row=1, column=0, padx=10)
+
+tk.Label(frame, text="نام خانوادگی", bg="#1a1a1a", fg=labels_color).grid(row=0, column=1, padx=10)
+entry_lname = tk.Entry(frame, bg="#333", fg="white", insertbackground="white")
+entry_lname.grid(row=1, column=1, padx=10)
+
+tk.Label(frame, text="سن", bg="#1a1a1a", fg=labels_color).grid(row=0, column=2, padx=10)
+entry_age = tk.Entry(frame, bg="#333", fg="white", width=10, insertbackground="white")
+entry_age.grid(row=1, column=2, padx=10)
+
+tk.Label(frame, text="نمره", bg="#1a1a1a", fg=labels_color).grid(row=0, column=3, padx=10)
+entry_grade = tk.Entry(frame, bg="#333", fg="white", width=10, insertbackground="white")
+entry_grade.grid(row=1, column=3, padx=10)
+
+btn_style = {
+    "bg": "#333",
+    "fg": "white",
+    "activebackground": "#555",
+    "activeforeground": "white",
+    "width": 12,
+    "bd": 0,
+    "font": ("IRANSans", 10)
+}
+
+tk.Button(frame, text="افزودن", command=add_student, **btn_style).grid(row=2, column=0, pady=10)
+tk.Button(frame, text="ویرایش", command=edit_student, **btn_style).grid(row=2, column=1, pady=10)
+tk.Button(frame, text="حذف", command=delete_student, **btn_style).grid(row=2, column=2, pady=10)
+
+update_table()
+root.mainloop()
